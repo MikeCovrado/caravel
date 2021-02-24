@@ -15,10 +15,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 -->
-# Mega-Project Counter Tests
+# Mega-Project "Mike Proj" Tests
 
-The directory includes three tests for the counter mega-project example: 
+The directory includes several tests for the mike_proj mega-project example: 
 
+0) Smoke Test:
+
+	* Compile, run and terminate normally.
+
+**Note**: other directories below here are out-of-date and should be ignored for now.
+<!---
 1) IO Ports Test: 
 
 	* Configures the user space lower 8 IO pins as outputs
@@ -35,3 +41,4 @@ The directory includes three tests for the counter mega-project example:
  
 	* Configures LA probes [64] and [65] as outputs from the management SoC to set counter clock and reset values
 	* Provides counter clock and monitors the counter value after five clock cycles
+-->
