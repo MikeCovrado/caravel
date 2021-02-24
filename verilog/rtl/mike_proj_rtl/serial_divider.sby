@@ -1,0 +1,13 @@
+[options]
+mode cover
+
+[engines]
+smtbmc
+
+[script]
+read -formal serial_divider_ftb.v serial_divider.v
+prep -top serial_divider_ftb
+
+[files]
+serial_divider_ftb.v
+serial_divider.v

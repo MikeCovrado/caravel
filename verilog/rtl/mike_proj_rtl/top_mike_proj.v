@@ -18,13 +18,13 @@
 /*
  *-------------------------------------------------------------
  *
- * mikecovrado_proj
- *     $ iverilog -D MPRJ_IO_PADS=128 -g2012 mikecovrado_proj.sv serial_divider.sv
+ * top_mike_proj
+ *     $ iverilog -D MPRJ_IO_PADS=128 -g2012 top_mike_proj.v serial_divider.v
  *
  *-------------------------------------------------------------
  */
 
-module mikecovrado_proj #(
+module top_mike_proj #(
     parameter BITS = 32,   // TODO: find out what this is really for...
               WBW  = 32
 )(
@@ -92,8 +92,8 @@ module mikecovrado_proj #(
     assign rst = (~la_oen[65]) ? la_data_in[65]: wb_rst_i;
 
     serial_divider #(
-        .WBW  (32), //Wishbone bus width
-        .XLEN (32)  //Data width of Dividend, Divisor, Quotient and Remainder
+        .WBW  (32), // Wishbone bus width
+        .XLEN (32)  // Data width of Dividend, Divisor, Quotient and Remainder
     ) serial_divider_u0 (
         .clk_i      (clk),
         .reset_i    (rst),
@@ -108,6 +108,6 @@ module mikecovrado_proj #(
         .la_data_o  (la_data_out)
     );
 
-endmodule: mikecovrado_proj
+endmodule: top_mike_proj
 
 `default_nettype wire

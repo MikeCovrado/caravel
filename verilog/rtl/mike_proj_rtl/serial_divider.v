@@ -139,6 +139,6 @@ module serial_divider #(
       end // if (reset_i)
     end // always @(posedge clk_i)
 
-endmodule: serial_divider
+endmodule // serial_divider
 
 `default_nettype wire

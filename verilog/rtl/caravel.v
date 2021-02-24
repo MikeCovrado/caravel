@@ -54,7 +54,7 @@
 	`include "gl/storage.v"
 	`include "gl/user_id_programming.v"
 	`include "gl/chip_io.v"
-`else
+`else  // GL
 	`include "mgmt_soc.v"
 	`include "housekeeping_spi.v"
 	`include "caravel_clocking.v"
@@ -68,7 +68,7 @@
 	`include "storage_bridge_wb.v"
 	`include "mprj_io.v"
 	`include "chip_io.v"
-`endif
+`endif  // GL
 
 `include "mprj_logic_high.v"
 `include "mprj2_logic_high.v"
@@ -83,12 +83,16 @@
 /*------------------------------*/
 /* Include user project here	*/
 /*------------------------------*/
+`ifdef MIKE_PROJ
+`include "mike_proj_rtl/mike_project.v"
+`else  // MIKE_PROJ
 `include "user_proj_example.v"
+`endif // MIKE_PROJ
 
 // `ifdef USE_OPENRAM
 //     `include "sram_1rw1r_32_256_8_sky130.v"
 // `endif
-`endif
+`endif // SIM
 
 module caravel (
     inout vddio,	// Common 3.3V padframe/ESD power
