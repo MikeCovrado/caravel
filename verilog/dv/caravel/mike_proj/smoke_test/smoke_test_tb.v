@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Efabless Corporation
+// SPDX-FileCopyrightText: 2021 Mike Thompson (Covrado)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,6 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 `default_nettype none
@@ -23,11 +25,14 @@
 module smoke_test_tb;
   reg clock;
   reg RSTB;
-  reg power1, power2;
+  reg power1;
+  reg power2;
 
-  wire gpio;
+  wire        gpio;
   wire [37:0] mprj_io;
   wire [15:0] checkbits;
+
+  integer     wdt_loop;
 
   assign checkbits = mprj_io[31:16];
 
@@ -38,26 +43,31 @@ module smoke_test_tb;
   end
 
   initial begin
-    $dumpfile("smoke_test.vcd");
-    $dumpvars(0, smoke_test_tb);
+    $dumpfile("smoke_test.caravel_u0.mprj.vcd");
+    $dumpvars(0, smoke_test_tb.caravel_u0.mprj);
+    //$dumpfile("smoke_test.vcd");
+    //$dumpvars(0, smoke_test_tb);
     $timeformat(-9, 1, "ns", 5);
 
     // Repeat cycles of 1000 clock edges as needed to complete testbench
-    repeat (30) begin
+    wdt_loop = 0;
+    repeat (50) begin
       repeat (1000) @(posedge clock);
-      $display("%0t: +1000 cycles", $time);
+      $display("%0t: %0d*1000 cycles", $time, ++wdt_loop);
     end
     $display("%c[1;31m",27);
-    $display ("Monitor: Timeout, Test Mega-Project IO (RTL) Failed");
+    $display("%m @ %0t: Timeout, Test Mega-Project IO (RTL) Failed", $time);
     $display("%c[0m",27);
     $finish;
   end
 
   initial begin
     wait(checkbits == 16'h AB60);
-    $display("Monitor @ %0t: Smoke Test MPRJ-Logic Analyzer Started", $time);
+    $display("%m @ %0t: Smoke Test MPRJ-Serial-Divider Started", $time);
     wait(checkbits == 16'h AB61);
-    $display("Monitor @ %0t: Smoke Test MPRJ-Logic Analyzer Passed", $time);
+    $display("%m @ %0t: Smoke Test MPRJ-Serial-Divider Passed", $time);
+    repeat (100) @(posedge clock);
+    $display("%m @ %0t: Smoke Test terminating simulation", $time);
     $finish;
   end
 
@@ -90,7 +100,7 @@ module smoke_test_tb;
   assign VDD1V8 = power2;
   assign VSS = 1'b0;
 
-  caravel uut (
+  caravel caravel_u0 (
     .vddio    (VDD3V3),
     .vssio    (VSS),
     .vdda     (VDD3V3),

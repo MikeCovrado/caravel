@@ -86,23 +86,28 @@ module mike_project #(
     // permanently set oeb so that outputs are always enabled: 0 is output, 1 is high-impedance
     assign buf_io_oeb = {`MPRJ_IO_PADS{1'b0}};
 
+    // tie-off unused outputs
+    assign buf_io_out = { {`MPRJ_IO_PADS-2{1'b0}}, hw_blinky, sw_blinky };
+
     // instantiate your module here, connecting what you need of the above signals
     serial_divider #(
         .WBW  (WBW ), // Wishbone bus width
         .LAW  (LAW ), // Logical Analyzer bus width
         .XLEN (XLEN)  // Data width of Dividend, Divisor, Quotient and Remainder
     ) serial_divider_u0 (
-        .clk_i      (clk),
-        .reset_i    (rst),
-        .wbs_stb_i  (wbs_stb_i),
-        .wbs_cyc_i  (wbs_cyc_i),
-        .wbs_we_i   (wbs_we_i),
-        .wbs_sel_i  (wbs_sel_i),
-        .wbs_adr_i  (wbs_adr_i),
-        .wbs_dat_i  (wbs_dat_i),
-        .wbs_ack_o  (wbs_ack_o),
-        .wbs_dat_o  (wbs_dat_o),
-        .la_data_o  (la_data_out)
+        .clk_i       (wb_clk_i),
+        .reset_i     (wb_rst_i),
+        .wbs_stb_i   (wbs_stb_i),
+        .wbs_cyc_i   (wbs_cyc_i),
+        .wbs_we_i    (wbs_we_i),
+        .wbs_sel_i   (wbs_sel_i),
+        .wbs_adr_i   (wbs_adr_i),
+        .wbs_dat_i   (wbs_dat_i),
+        .wbs_ack_o   (wbs_ack_o),
+        .wbs_dat_o   (wbs_dat_o),
+        .la_data_o   (la_data_out),
+        .hw_blinky_o (hw_blinky),
+        .sw_blinky_o (sw_blinky)
     );
 
 

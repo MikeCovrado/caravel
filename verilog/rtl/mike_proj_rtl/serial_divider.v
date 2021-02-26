@@ -19,7 +19,9 @@
 module serial_divider #(
     parameter WBW  =  32, // Wishbone bus width
               LAW  = 128, // Logic Analyzer width
-              XLEN =  32  // Data width of Dividend, Divisor and Quotient
+              XLEN =  32, // Data width of Dividend, Divisor and Quotient
+//              BLINK_CYCLES = 40_000_000  // period in clk cycles of hw blink
+              BLINK_CYCLES = 32_000  // period in clk cycles of hw blink
 )(
     input              clk_i,
     input              reset_i,
@@ -33,40 +35,68 @@ module serial_divider #(
     output             wbs_ack_o,
     output [ WBW-1:0]  wbs_dat_o,
     // Logic Analyser
-    output [ LAW-1:0]  la_data_o
+    output [ LAW-1:0]  la_data_o,
+    // No project is truly complete without blinking LEDs
+    output             hw_blinky_o,  // hardware control
+    output             sw_blinky_o   // software control
 );
+
+    localparam HWBCW = $clog2(BLINK_CYCLES/2); // hardware blink counter width
+
     // Module outputs
     wire            wbs_ack_o;
     wire [ WBW-1:0] wbs_dat_o;
     wire [ LAW-1:0] la_data_o;
+    reg             hw_blinky_o;
+    reg             sw_blinky_o;
 
     reg             ack;
     reg  [ WBW-1:0] rdata;
 
     assign wbs_ack_o = ack;
     assign wbs_dat_o = rdata;
-    assign la_data_o = {dividend, divisor, quotient, remainder};
+    assign la_data_o = dividend;
 
     // Control Regs
     reg start;
     reg debug;
+    reg fini;
+
 
     // Function arguments and results
-    reg  [XLEN-1:0] dividend;
-    reg  [XLEN-1:0] divisor;
-    reg  [XLEN-1:0] quotient;
-    reg  [XLEN-1:0] remainder;
+    reg  [ XLEN-1:0] dividend;
+    reg  [ XLEN-1:0] divisor;
+    reg  [ XLEN-1:0] quotient;
+    reg  [ XLEN-1:0] w_quotient;
+    reg  [ XLEN-1:0] remainder;
+
+    // Local variables
+    reg  [HWBCW-1:0] hw_blink_cntr;
+    reg  [     31:0] tmp_divisor;
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Wishbone control logic
+    //    +--CSR----+---Address---+------Access Mode-------------------
+    //     DIVIDEND  32'h3000_0000  write/read
+    //     DIVISOR   32'h3000_0004  write/read
+    //     QUOTIENT  32'h3000_0008  read-only unless DEBUG is set
+    //     REMAINDER 32'h3000_000C  read-only unless DEBUG is set
+    //     DEBUG     32'h3000_0010  set-on-write, clear-on-read
+    //     FINI      32'h3000_0014  read-only unless DEBUG is set
+    //     START     32'h3000_0018  set-on-write-or-read (cannot be read)
+    //     SW_BLINKY 32'h3000_001C  set-on-write, clear-on-read
 
     always @(posedge clk_i) begin
       if (reset_i) begin
-        dividend  <= {XLEN{1'b0}};
-        divisor   <= {XLEN{1'b0}};
-        quotient  <= {XLEN{1'b0}};
-        remainder <= {XLEN{1'b0}};
-        rdata     <= { WBW{1'b0}};
-        ack       <= 1'b0;
-        start     <= 1'b0;
-        debug     <= 1'b0;
+        dividend    <= {XLEN{1'b0}};
+        divisor     <= {XLEN{1'b0}};
+        w_quotient  <= {XLEN{1'b0}};
+        remainder   <= {XLEN{1'b0}};
+        rdata       <= { WBW{1'b0}};
+        ack         <= 1'b0;
+        start       <= 1'b0;
+        debug       <= 1'b0;
+        sw_blinky_o <= 1'b1;
       end
       else begin
         // Single-cycle WB write/reads
@@ -76,67 +106,140 @@ module serial_divider #(
         if (wbs_stb_i && wbs_cyc_i && !ack) begin
           ack <= 1'b1;
           // Top nibble addresses args/results
-          case (wbs_adr_i[WBW-1:WBW-4])
-            4'h8: begin
-              if (wbs_we_i) begin
-                if (wbs_sel_i[0]) dividend[ 7: 0] <= wbs_dat_i[ 7: 0];
-                if (wbs_sel_i[1]) dividend[15: 8] <= wbs_dat_i[15: 8];
-                if (wbs_sel_i[2]) dividend[23:16] <= wbs_dat_i[23:16];
-                if (wbs_sel_i[3]) dividend[31:24] <= wbs_dat_i[31:24];
+          if (wbs_adr_i[WBW-1:WBW-4] == 4'h3) begin
+            case (wbs_adr_i[4:0]) // TODO: could (should?) make this [4:2]
+              // DIVIDEND at 32'h3000_0000 is write/read
+              5'b0_0000: begin
+                if (wbs_we_i) begin
+                  if (wbs_sel_i[0]) dividend[ 7: 0] <= wbs_dat_i[ 7: 0];
+                  if (wbs_sel_i[1]) dividend[15: 8] <= wbs_dat_i[15: 8];
+                  if (wbs_sel_i[2]) dividend[23:16] <= wbs_dat_i[23:16];
+                  if (wbs_sel_i[3]) dividend[31:24] <= wbs_dat_i[31:24];
+                end
+                else begin
+                  if (wbs_sel_i[3]) rdata[31:24] <= dividend[31:24];
+                  if (wbs_sel_i[2]) rdata[23:16] <= dividend[23:16];
+                  if (wbs_sel_i[1]) rdata[15: 8] <= dividend[15: 8];
+                  if (wbs_sel_i[0]) rdata[ 7: 0] <= dividend[ 7: 0];
+                end
               end
-              else begin
-                if (wbs_sel_i[3]) rdata[31:24] <= dividend[31:24];
-                if (wbs_sel_i[2]) rdata[23:16] <= dividend[23:16];
-                if (wbs_sel_i[1]) rdata[15: 8] <= dividend[15: 8];
-                if (wbs_sel_i[0]) rdata[ 7: 0] <= dividend[ 7: 0];
+              // DIVISOR at 32'h3000_0004 is write/read
+              5'b0_0100: begin
+                if (wbs_we_i) begin
+                  divisor <= wbs_dat_i;
+                end
+                else begin
+                  rdata <= divisor;
+                end
               end
-            end
-            4'h4: begin
-              if (wbs_we_i) begin
-                divisor <= wbs_dat_i;
+              // QUOTIENT at 32'h3000_0008 is read-only unless DEBUG is set
+              5'b0_1000: begin
+                if (wbs_we_i) begin
+                  if (debug) w_quotient <= wbs_dat_i;
+                end
+                else begin
+                   rdata <= quotient;
+                end
               end
-              else begin
-                rdata <= divisor;
+              // REMAINDER at 32'h3000_000C is read-only unless DEBUG is set
+              5'b0_1100: begin
+                if (wbs_we_i) begin
+                  if (debug) remainder <= wbs_dat_i;
+                end
+                else begin
+                  rdata <= remainder;
+                end
               end
-            end
-            4'h2: begin
-              if (wbs_we_i) begin
-                if (debug) quotient <= wbs_dat_i;
+              // DEBUG at 32'h3000_0010 is set-on-write, clear-on-read
+              // (no return value)
+              5'b1_0000: begin
+                if (wbs_we_i) begin
+                  debug <= 1'b1;
+                end
+                else begin
+                  debug <= 1'b0;
+                  rdata <= 32'h0000_0000;
+                end
               end
-              else begin
-                 rdata <= quotient;
+              // FINI at 32'h3000_0014 is read-only unless DEBUG is set
+              5'b1_0100: begin
+                if (wbs_we_i) begin
+                  //if (debug) fini <= wbs_dat_i[0];
+                end
+                else begin
+                  rdata <= { {31{1'b0}}, fini };
+                end
               end
-            end
-            4'h1: begin
-              if (wbs_we_i) begin
-                if (debug) remainder <= wbs_dat_i;
-              end
-              else begin
-                rdata <= remainder;
-              end
-            end
-            default: begin
-              rdata <= rdata;  // TODO: set an error?
-            end
-          endcase // (wbs_adr_i[WBW-1:WBW-4])
-
-          // Next nibble addresses control regs
-          case (wbs_adr_i[WBW-5:WBW-8])
-            4'h8: begin
-                debug <= 1'b1;
-            end
-            4'h4: begin
-                debug <= 1'b0;
-            end
-            4'h2: begin
+              // START at 32'h3000_0018 is set-on-write-or-read (cannot be read)
+              5'b1_1000: begin
                 start <= 1'b1;
-            end
-            default: begin
-              rdata <= rdata;  // TODO: set an error?
-            end
-          endcase // (wbs_adr_i[WBW-5:WBW-8])
+                rdata <= 32'h0000_0000;
+              end
+              // SW_BLINKY at 32'h3000_001C is set-on-write, clear-on-read
+              5'b1_1100: begin
+                if (wbs_we_i) begin
+                  sw_blinky_o <= 1'b1;
+                end
+                else begin
+                  sw_blinky_o <= 1'b0;
+                  rdata <= 32'h0000_0000;
+                end
+              end
+              // Accesses to all other addresses return error code (even on writes)
+              default: begin
+                rdata <= 32'h0bad_0bad;  // TODO: set an error?
+              end
+            endcase // (wbs_adr_i[7:4])
+          end // if (wbs_adr_i[WBW-1:WBW-4] == 4'h3)
         end //if (wbs_stb_i && !ack)
       end // if (reset_i)
+    end // always @(posedge clk_i)
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Divide by even number.
+    // Assumes that "start" is a single cycle pulse.
+    always @(posedge clk_i) begin
+      if (reset_i) begin
+        tmp_divisor <= 32'h0000_0000;
+        fini        <= 1'b0;
+      end
+      else begin
+        if (debug) begin
+          quotient    <= w_quotient;
+        end
+        if (start) begin
+          tmp_divisor <= {divisor[31:1], 1'b0};
+          quotient    <= dividend;
+          fini        <= 1'b0;
+        end
+        if (tmp_divisor > 32'h0000_0001) begin
+          tmp_divisor <= tmp_divisor >> 1;
+          quotient    <= quotient >> 1;
+        end
+        if (tmp_divisor == 32'h0000_0001) begin
+          tmp_divisor <= 32'h0000_0000;
+          fini        <= 1'b1;
+        end
+      end
+    end
+
+    ///////////////////////////////////////////////////////////////////////////
+    // blink LED for sign-of-live (no software control)
+    // HWBCW ==  7 ==> 128 clk cycles ==> 3200ns (assume 25ns clk)
+    // HWBCW == 15 ==> 32K clk cycles ==> 819,200ns
+    // HWBCW == 24 ==> 20M clk cycles ==> ~0.5s
+    always @(posedge clk_i) begin
+      if (reset_i) begin
+        hw_blink_cntr <= 32'h0000_0000;
+        hw_blinky_o   <= 1'b1;
+      end
+      else begin
+        hw_blink_cntr <= hw_blink_cntr + 32'h0000_0001;
+        if (hw_blink_cntr[HWBCW-1]) begin
+            hw_blinky_o   <= !hw_blinky_o;
+            hw_blink_cntr <= 32'h0000_0000;
+        end
+      end
     end // always @(posedge clk_i)
 
 endmodule // serial_divider
