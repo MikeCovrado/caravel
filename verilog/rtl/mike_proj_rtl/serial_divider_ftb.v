@@ -64,10 +64,14 @@ module serial_divider_ftb #(
       end
 
       if (f_past_valid) begin
-        _set_dividend_: cover( (la_data_out[31:0] == serial_divider_u0.dividend ) &&
-                               (la_data_out[31:0] != 32'h0000_0000              ) );
+        //_set_dividend_:  cover( (la_data_out[31:0] == serial_divider_u0.dividend ) &&
+        //                        (la_data_out[31:0] != 32'h0000_0000              ) );
 
-        _calc_quotient_: cover (serial_divider_u0.quotient == 32'h0000_0004);
+        _calc_quotient_: cover ( (la_data_out[31:0] == 32'h0000_0004) &&
+                                 (fini              == 1'b1         ) );
+
+        _set_start_:     cover (start == 1'b1);
+
         /*
         _set_divisor_:  cover( (la_data_out[ 95:64] == serial_divider_u0.divisor  ) &&
                                (la_data_out[ 95:64] != 32'h0000_0000              ) );
@@ -97,6 +101,10 @@ module serial_divider_ftb #(
     ) serial_divider_u0 (
         .clk_i       (clk),
         .reset_i     (rst),
+
+        .start_o     (start),
+        .fini_o      (fini),
+
         .wbs_stb_i   (wbs_stb_i),
         .wbs_cyc_i   (wbs_cyc_i),
         .wbs_we_i    (wbs_we_i),

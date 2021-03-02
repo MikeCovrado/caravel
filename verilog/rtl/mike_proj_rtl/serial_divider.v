@@ -25,17 +25,20 @@ module serial_divider #(
 )(
     input              clk_i,
     input              reset_i,
+    // Hacking...
+    output             start_o,
+    output             fini_o,
     // Wishbone
     input              wbs_stb_i,
     input              wbs_cyc_i,
     input              wbs_we_i,
     input  [WBW/8-1:0] wbs_sel_i,
-    input  [ WBW-1:0]  wbs_adr_i,
-    input  [ WBW-1:0]  wbs_dat_i,
+    input  [  WBW-1:0] wbs_adr_i,
+    input  [  WBW-1:0] wbs_dat_i,
     output             wbs_ack_o,
-    output [ WBW-1:0]  wbs_dat_o,
+    output [  WBW-1:0] wbs_dat_o,
     // Logic Analyser
-    output [ LAW-1:0]  la_data_o,
+    output [  LAW-1:0] la_data_o,
     // No project is truly complete without blinking LEDs
     output             hw_blinky_o,  // hardware control
     output             sw_blinky_o   // software control
@@ -44,6 +47,8 @@ module serial_divider #(
     localparam HWBCW = $clog2(BLINK_CYCLES/2); // hardware blink counter width
 
     // Module outputs
+    wire            start_o;
+    wire            fini_o;
     wire            wbs_ack_o;
     wire [ WBW-1:0] wbs_dat_o;
     wire [ LAW-1:0] la_data_o;
@@ -53,22 +58,31 @@ module serial_divider #(
     reg             ack;
     reg  [ WBW-1:0] rdata;
 
+    // Debug outputs
+    assign start_o   = start;
+    assign fini_o    = fini;
+
     assign wbs_ack_o = ack;
     assign wbs_dat_o = rdata;
+`ifdef FORMAL
+    assign la_data_o = quotient;
+`else
     assign la_data_o = dividend;
+`endif //FORMAL
 
     // Control Regs
     reg start;
     reg debug;
+    reg running;
     reg fini;
-
 
     // Function arguments and results
     reg  [ XLEN-1:0] dividend;
     reg  [ XLEN-1:0] divisor;
     reg  [ XLEN-1:0] quotient;
-    reg  [ XLEN-1:0] w_quotient;
     reg  [ XLEN-1:0] remainder;
+    reg  [ XLEN-1:0] dbg_quotient;
+    reg  [ XLEN-1:0] dbg_remainder;
 
     // Local variables
     reg  [HWBCW-1:0] hw_blink_cntr;
@@ -79,28 +93,29 @@ module serial_divider #(
     //    +--CSR----+---Address---+------Access Mode-------------------
     //     DIVIDEND  32'h3000_0000  write/read
     //     DIVISOR   32'h3000_0004  write/read
-    //     QUOTIENT  32'h3000_0008  read-only unless DEBUG is set
-    //     REMAINDER 32'h3000_000C  read-only unless DEBUG is set
+    //     QUOTIENT  32'h3000_0008  read-only
+    //     REMAINDER 32'h3000_000C  read-only
     //     DEBUG     32'h3000_0010  set-on-write, clear-on-read
-    //     FINI      32'h3000_0014  read-only unless DEBUG is set
+    //     FINI      32'h3000_0014  read-only
     //     START     32'h3000_0018  set-on-write-or-read (cannot be read)
     //     SW_BLINKY 32'h3000_001C  set-on-write, clear-on-read
 
     always @(posedge clk_i) begin
       if (reset_i) begin
-        dividend    <= {XLEN{1'b0}};
-        divisor     <= {XLEN{1'b0}};
-        w_quotient  <= {XLEN{1'b0}};
-        remainder   <= {XLEN{1'b0}};
-        rdata       <= { WBW{1'b0}};
-        ack         <= 1'b0;
-        start       <= 1'b0;
-        debug       <= 1'b0;
-        sw_blinky_o <= 1'b1;
+        dividend      <= {XLEN{1'b0}};
+        divisor       <= {XLEN{1'b0}};
+        dbg_quotient  <= {XLEN{1'b0}};
+        dbg_remainder <= {XLEN{1'b0}};
+        rdata         <= { WBW{1'b0}};
+        ack           <= 1'b0;
+        start         <= 1'b0;
+        debug         <= 1'b0;
+        sw_blinky_o   <= 1'b1;
       end
       else begin
         // Single-cycle WB write/reads
         // TODO: support b2b cycles
+        // (although it doesn't seem like Caravel can drive those at this time)
         ack   <= 1'b0;
         start <= 1'b0;
         if (wbs_stb_i && wbs_cyc_i && !ack) begin
@@ -132,26 +147,24 @@ module serial_divider #(
                   rdata <= divisor;
                 end
               end
-              // QUOTIENT at 32'h3000_0008 is read-only unless DEBUG is set
+              // QUOTIENT at 32'h3000_0008 is read-only unless debug
               5'b0_1000: begin
-                if (wbs_we_i) begin
-                  if (debug) w_quotient <= wbs_dat_i;
+                if (wbs_we_i && debug) begin
                 end
                 else begin
-                   rdata <= quotient;
+                  rdata <= quotient;
                 end
               end
-              // REMAINDER at 32'h3000_000C is read-only unless DEBUG is set
+              // REMAINDER at 32'h3000_000C is read-only unless debug
               5'b0_1100: begin
-                if (wbs_we_i) begin
-                  if (debug) remainder <= wbs_dat_i;
+                if (wbs_we_i && debug) begin
+                  dbg_remainder <= wbs_dat_i;
                 end
                 else begin
                   rdata <= remainder;
                 end
               end
               // DEBUG at 32'h3000_0010 is set-on-write, clear-on-read
-              // (no return value)
               5'b1_0000: begin
                 if (wbs_we_i) begin
                   debug <= 1'b1;
@@ -161,10 +174,10 @@ module serial_divider #(
                   rdata <= 32'h0000_0000;
                 end
               end
-              // FINI at 32'h3000_0014 is read-only unless DEBUG is set
+              // FINI at 32'h3000_0014 is read-only (cannot be written)
               5'b1_0100: begin
                 if (wbs_we_i) begin
-                  //if (debug) fini <= wbs_dat_i[0];
+                  rdata <= rdata;
                 end
                 else begin
                   rdata <= { {31{1'b0}}, fini };
@@ -201,24 +214,35 @@ module serial_divider #(
     always @(posedge clk_i) begin
       if (reset_i) begin
         tmp_divisor <= 32'h0000_0000;
+        quotient    <= 32'h0000_0000;
+        remainder   <= 32'h0000_0000;
+        running     <= 1'b0;
         fini        <= 1'b0;
       end
       else begin
         if (debug) begin
-          quotient    <= w_quotient;
+          quotient    <= dbg_quotient;
+          remainder   <= dbg_remainder;
         end
-        if (start) begin
-          tmp_divisor <= {divisor[31:1], 1'b0};
-          quotient    <= dividend;
-          fini        <= 1'b0;
-        end
-        if (tmp_divisor > 32'h0000_0001) begin
-          tmp_divisor <= tmp_divisor >> 1;
-          quotient    <= quotient >> 1;
-        end
-        if (tmp_divisor == 32'h0000_0001) begin
-          tmp_divisor <= 32'h0000_0000;
-          fini        <= 1'b1;
+        else begin
+          // Start calculation if:
+          //  - not in debug mode
+          //  - not already calcuating. (subsequent starts lost without error)
+          if (start && !running) begin
+            tmp_divisor <= {divisor[31:1], 1'b0};
+            quotient    <= dividend;
+            running     <= 1'b1;
+            fini        <= 1'b0;
+          end
+          if (tmp_divisor > 32'h0000_0001) begin
+            tmp_divisor <= tmp_divisor >> 1;
+            quotient    <= quotient >> 1;
+          end
+          if (tmp_divisor == 32'h0000_0001) begin
+            tmp_divisor <= 32'h0000_0000;
+            running     <= 1'b0;
+            fini        <= 1'b1;
+          end
         end
       end
     end
