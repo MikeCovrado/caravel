@@ -51,7 +51,7 @@ module smoke_test_tb;
 
     // Repeat cycles of 1000 clock edges as needed to complete testbench
     wdt_loop = 0;
-    repeat (50) begin
+    repeat (30) begin
       repeat (1000) @(posedge clock);
       $display("%0t: %0d*1000 cycles", $time, ++wdt_loop);
     end

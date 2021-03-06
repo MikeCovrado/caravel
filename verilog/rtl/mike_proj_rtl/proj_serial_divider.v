@@ -134,7 +134,7 @@ module proj_serial_divider #(
         ack           <= 1'b0;
         start         <= 1'b0;
         debug         <= 1'b0;
-	la_sel        <= 2'b00;
+        la_sel        <= 2'b00;
         sw_blinky_o   <= 1'b1;
       end
       else begin

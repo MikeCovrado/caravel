@@ -80,7 +80,8 @@ module user_project_wrapper #(
     /*--------------------------------------*/
 
     //user_proj_example mprj (
-    mike_project    mprj (
+    //mike_project    mprj (
+    wrapper_serial_divider    mprj (
 
 `ifdef USE_POWER_PINS
         .vdda1       (vdda1),  // User area 1 3.3V power
@@ -120,7 +121,7 @@ module user_project_wrapper #(
 
         .active      (la_data_in[32])
 
-    ); // mike_project    mprj();
+    ); // wrapper_serial_divider    mprj();
 
-endmodule   // mike_project_wrapper
+endmodule   // user_project_wrapper
 `default_nettype wire

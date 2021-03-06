@@ -84,7 +84,8 @@
 /* Include user project here	*/
 /*------------------------------*/
 `ifdef MIKE_PROJ
-`include "mike_proj_rtl/mike_project.v"
+//`include "mike_proj_rtl/mike_project.v"
+`include "mike_proj_rtl/wrapper_serial_divider.v"
 `else  // MIKE_PROJ
 `include "user_proj_example.v"
 `endif // MIKE_PROJ

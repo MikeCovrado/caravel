@@ -26,7 +26,8 @@
 `ifndef MPRJ_IO_PADS
   `define MPRJ_IO_PADS 38
 `endif
-//`include "proj_serial_divider.v"
+
+`include "mike_proj_rtl/proj_serial_divider.v"
 
 module wrapper_serial_divider #(
     parameter WBW  = 32, // Wishbone bus width
@@ -101,15 +102,23 @@ module wrapper_serial_divider #(
     assign io_oeb       = active ? buf_io_oeb       : {`MPRJ_IO_PADS{1'bZ}};
 `endif
 
+/*
     // permanently set oeb so that lower nibble of IO_PADs are inputs and all others are outputs
     // 0 is output, 1 is high-impedance
-    assign buf_io_oeb = {`MPRJ_IO_PADS-4{1'b0}, 4'b1111};
+    assign buf_io_oeb = { {`MPRJ_IO_PADS-4{1'b0}}, 4'b1111 };
 
     // drive the blinky lights; tie-off unused outputs
     assign buf_io_out = { {`MPRJ_IO_PADS-6{1'b0}}, hw_blinky, sw_blinky, 4'b0000 };
 
     // Low order bits of can be used to select la_data_out
     assign hw_sel     = io_in[3:0];
+*/
+    // permanently set oeb so that outputs are always enabled: 0 is output, 1 is high-impedance
+    assign buf_io_oeb = {`MPRJ_IO_PADS{1'b0}};
+
+    // tie-off unused outputs
+    assign buf_io_out = { {`MPRJ_IO_PADS-2{1'b0}}, hw_blinky, sw_blinky };
+    assign hw_sel     = 4'h0;
 
     // The _actual_ project!
     proj_serial_divider #(
@@ -130,9 +139,9 @@ module wrapper_serial_divider #(
         .la_data_o   (la_data_out),
         .hw_blinky_o (hw_blinky),
         .sw_blinky_o (sw_blinky),
-	.start_o     (div_start),
-	.fini_o      (div_fini),
-	.hw_sel_i    (hw_sel)
+        .start_o     (div_start),
+        .fini_o      (div_fini),
+        .hw_sel_i    (hw_sel)
     );
 
 endmodule // wrapper_serial_divider

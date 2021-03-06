@@ -140,8 +140,8 @@ void main()
     }
     */
 
-    // Logical Analyzer 0 data driven by DIVIDEND
-    reg_mprj_slave_dividend = 0x04040404;
+    // By default, Logical Analyzer 0 data driven by DIVISOR
+    reg_mprj_slave_divisor = 0x04040404;
     if (reg_la0_data == 0x04040404) {
         reg_mprj_datal = 0xAB610000;
     }
