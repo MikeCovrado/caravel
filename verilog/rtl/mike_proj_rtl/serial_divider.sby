@@ -6,9 +6,10 @@ depth 20
 smtbmc
 
 [script]
-read -formal serial_divider_ftb.v serial_divider.v
+read -formal serial_divider_ftb.v proj_serial_divider.v
+hierarchy -check -top serial_divider_ftb
 prep -top serial_divider_ftb
 
 [files]
 serial_divider_ftb.v
-serial_divider.v
+proj_serial_divider.v
