@@ -21,6 +21,9 @@
 // project wrapper for the Caravel user project.
 //
 
+`ifndef _WRAPPER_SERIAL_DIVIDER_
+`define _WRAPPER_SERIAL_DIVIDER_
+
 `default_nettype none
 
 `ifndef MPRJ_IO_PADS
@@ -81,6 +84,10 @@ module wrapper_serial_divider #(
     // Divider operation start/finish
     wire                     div_start;
     wire                     div_fini;
+
+    // wires to connect LED control to IO_PADs
+    wire                     hw_blinky;
+    wire                     sw_blinky;
 
     // selector for la_out
     wire [              3:0] hw_sel;
@@ -147,3 +154,5 @@ module wrapper_serial_divider #(
 endmodule // wrapper_serial_divider
 
 `default_nettype wire
+
+`endif // _WRAPPER_SERIAL_DIVIDER_

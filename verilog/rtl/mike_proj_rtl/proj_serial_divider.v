@@ -14,6 +14,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.0
 
+`ifndef _PROJ_SERIAL_DIVIDER_
+`define _PROJ_SERIAL_DIVIDER_
+
 `default_nettype none
 
 module proj_serial_divider #(
@@ -301,4 +304,7 @@ module proj_serial_divider #(
     end // always @(posedge clk_i)
 
 endmodule // proj_serial_divider 
+
 `default_nettype wire
+
+`endif // _PROJ_SERIAL_DIVIDER_
