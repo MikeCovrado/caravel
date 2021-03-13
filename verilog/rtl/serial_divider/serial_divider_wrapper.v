@@ -21,8 +21,8 @@
 // project wrapper for the Caravel user project.
 //
 
-`ifndef _WRAPPER_SERIAL_DIVIDER_
-`define _WRAPPER_SERIAL_DIVIDER_
+`ifndef _SERIAL_DIVIDER_WRAPER_
+`define _SERIAL_DIVIDER_WRAPER_
 
 `default_nettype none
 
@@ -30,9 +30,9 @@
   `define MPRJ_IO_PADS 38
 `endif
 
-`include "mike_proj_rtl/proj_serial_divider.v"
+`include "serial_dividier/serial_divider_project.v"
 
-module wrapper_serial_divider #(
+module serial_divider_wrapper #(
     parameter WBW  = 32, // Wishbone bus width
               LAW  = 32, // Width of local instance of Logic Analyser
               XLEN = 32  // Data width of Dividend, Divisor, Quotient and Remainder
@@ -128,7 +128,7 @@ module wrapper_serial_divider #(
     assign hw_sel     = 4'h0;
 
     // The _actual_ project!
-    proj_serial_divider #(
+    serial_divider_project #(
         .WBW  (WBW ), // Wishbone bus width
         .LAW  (LAW ), // Logical Analyzer bus width
         .XLEN (XLEN)  // Data width of Dividend, Divisor, Quotient and Remainder
@@ -151,8 +151,8 @@ module wrapper_serial_divider #(
         .hw_sel_i    (hw_sel)
     );
 
-endmodule // wrapper_serial_divider
+endmodule // serial_divider_divider
 
 `default_nettype wire
 
-`endif // _WRAPPER_SERIAL_DIVIDER_
+`endif // _SERIAL_DIVIDER_WRAPPER_

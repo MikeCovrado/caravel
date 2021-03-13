@@ -13,13 +13,24 @@
 // limitations under the License.
 //
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.0
+//
+///////////////////////////////////////////////////////////////////////////////
+//
+// SERIAL DIVIDER PROJECT: this is the actual design "design" in the Z2A
+//                         multi-project wrapper.
+//
+// Implements a serial divider accessable via wishbone.
+//
+// Curent status: prototype to pipeclean integration into Z2A multi-project
+// flow. Divider function is brain-dead and only works for modulo-2 operations.
+//
 
-`ifndef _PROJ_SERIAL_DIVIDER_
-`define _PROJ_SERIAL_DIVIDER_
+`ifndef _SERIAL_DIVIDER_PROJECT_
+`define _SERIAL_DIVIDER_PROJECT_
 
 `default_nettype none
 
-module proj_serial_divider #(
+module serial_divider_project #(
     parameter WBW  =  32, // Wishbone bus width
               LAW  = 128, // Logic Analyzer width
               XLEN =  32, // Data width of Dividend, Divisor and Quotient
@@ -303,7 +314,7 @@ module proj_serial_divider #(
       end
     end // always @(posedge clk_i)
 
-endmodule // proj_serial_divider 
+endmodule // serial_divider_project
 
 `default_nettype wire
 
